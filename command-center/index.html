@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<title>Agent 指挥中心</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f8; --card:#ffffff; --card2:#f8fafc; --line:#e2e8f0; --text:#0f172a; --muted:#64748b; --muted2:#94a3b8;
+  --teal:#0f766e; --teal-bg:#ccfbf1; --green:#15803d; --green-bg:#dcfce7; --amber:#b45309; --amber-bg:#fef3c7; --red:#b91c1c; --blue:#1d4ed8; --blue-bg:#dbeafe;
+  --shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0b1220; --card:#111827; --card2:#0f172a; --line:#1f2937; --text:#f1f5f9; --muted:#94a3b8; --muted2:#64748b; --teal-bg:#134e4a; --green-bg:#14532d; --amber-bg:#451a03; --blue-bg:#1e3a5f; --shadow:0 1px 3px rgba(0,0,0,.3)}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans SC",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--teal);text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+.mono{font-family:"JetBrains Mono",monospace}
+
+/* LAYOUT - one screen */
+.wrap{max-width:1440px;margin:0 auto;padding:14px 14px 20px}
+@media(min-width:1100px){ .wrap{height:100dvh;display:flex;flex-direction:column;overflow:hidden} }
+
+/* TOP BAR */
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.top-left h1{font-size:22px;line-height:1;margin:0;letter-spacing:-.02em;font-weight:900}
+.top-left h1 span{color:var(--teal)}
+.top-left p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+.top-left p b{color:var(--text)}
+.clockbox{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 12px;box-shadow:var(--shadow)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px #22c55e22}
+.pill small{font-size:11px;color:var(--muted);letter-spacing:.06em;font-weight:700}
+.pill strong{font-size:13px}
+#clock{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:15px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.kpi label{font-size:11px;letter-spacing:.08em;font-weight:700;color:var(--muted);text-transform:uppercase}
+.kpi .num{font-size:26px;font-weight:900;line-height:1;margin-top:4px}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.kpi .icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.i-teal{background:var(--teal-bg)} .i-green{background:var(--green-bg)} .i-amber{background:var(--amber-bg)} .i-blue{background:var(--blue-bg)}
+
+/* MAIN GRID */
+.main{display:grid;grid-template-columns:330px 1fr 350px;gap:12px;min-height:0;flex:1}
+@media(max-width:1100px){.main{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.main{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.panel-head{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.panel-head h2{font-size:15px;margin:0;font-weight:900;letter-spacing:-.01em}
+.panel-head p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+.badge{font-size:11px;font-weight:800;padding:4px 8px;border-radius:999px;white-space:nowrap}
+.badge-teal{background:var(--teal-bg);color:var(--teal)} .badge-green{background:var(--green-bg);color:var(--green)} .badge-amber{background:var(--amber-bg);color:var(--amber)}
+.panel-body{padding:12px;overflow:auto;flex:1}
+@media(max-width:1099px){.panel-body{overflow:visible}}
+
+/* Agents */
+.filters{display:flex;gap:6px;padding:10px 12px 0;flex-wrap:wrap}
+.filters button{min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:12px;font-weight:700;color:var(--muted)}
+.filters button.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.agent{display:flex;gap:11px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--card);cursor:pointer;text-align:left;width:100%}
+.agent:hover{border-color:var(--teal)}
+.agent.active{border-color:var(--teal);background:linear-gradient(0deg, color-mix(in srgb, var(--teal-bg) 35%, transparent), transparent)}
+.avatar{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0;position:relative}
+.av-main{background:#0f766e}.av-1{background:#334155}.av-2{background:#0e7490}.av-3{background:#15803d}.av-4{background:#b45309}
+.avatar::after{content:"";position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;border:2px solid var(--card);background:#22c55e}
+.avatar.warn::after{background:#f59e0b}
+.agent-main{flex:1;min-width:0}
+.agent-main strong{font-size:13.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.agent-main strong em{font-style:normal;font-size:10px;padding:2px 6px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);font-weight:700}
+.agent-main p{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+.agent-meta{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.agent-meta span{font-size:11px;color:var(--muted)} .agent-meta b{color:var(--text);font-weight:700}
+.detail{background:var(--card2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.detail b{color:var(--text)}
+
+/* Tickets */
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:6px;margin-bottom:12px}
+@media(max-width:500px){.flow{grid-template-columns:1fr 1fr}}
+.flow-step{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.flow-step b{font-size:12px;display:block} .flow-step span{font-size:11px;color:var(--muted)}
+.arrow{color:var(--muted2);font-weight:900;text-align:center}
+@media(max-width:500px){.arrow{display:none}}
+.pool{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+@media(prefers-color-scheme: dark){.pool{background:#020617;border:1px solid var(--line)}}
+.pool code{font-family:"JetBrains Mono",monospace;font-size:12px}
+.pool span{font-size:11px;opacity:.7}
+.board{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+@media(max-width:480px){.board{grid-template-columns:1fr}}
+.lane{border:1px solid var(--line);border-radius:12px;padding:11px;background:var(--card)}
+.lane-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.lane-head b{font-size:12px} .count{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900}
+.c-gray{background:var(--card2);border:1px solid var(--line)} .c-blue{background:var(--blue-bg);color:var(--blue)} .c-amber{background:var(--amber-bg);color:var(--amber)} .c-green{background:var(--green-bg);color:var(--green)}
+.lane ul{margin:0;padding-left:16px;font-size:12px;line-height:1.7;color:var(--muted)} .lane ul b{color:var(--text)}
+.redline{border:1px solid #fecaca;background:#fff1f2;border-radius:12px;padding:11px 12px}
+@media(prefers-color-scheme: dark){.redline{background:#2a0a0a;border-color:#7f1d1d}}
+.redline b{font-size:12px;color:var(--red)} .redline p{margin:4px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+@media(max-width:480px){.two-col{grid-template-columns:1fr}}
+.mini{border:1px solid var(--line);border-radius:10px;padding:10px}
+.mini b{font-size:12px} .mini ul{margin:6px 0 0;padding-left:16px;font-size:12px;line-height:1.65;color:var(--muted)}
+
+/* Chat */
+.chat-list{display:flex;flex-direction:column;gap:8px}
+.chat-item{display:flex;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.chat-item .ic{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-size:18px;flex-shrink:0;background:var(--card2);border:1px solid var(--line)}
+.chat-item b{font-size:13px} .chat-item p{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.schedule{margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.schedule table{width:100%;border-collapse:collapse;font-size:12px}
+.schedule th{text-align:left;background:var(--card2);padding:8px 10px;font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.schedule td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:top;line-height:1.5}
+.schedule td:first-child{font-weight:700;white-space:nowrap}
+.tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 6px;border-radius:999px}
+.tag-on{background:var(--green-bg);color:var(--green)} .tag-wait{background:var(--amber-bg);color:var(--amber)}
+.timeline{margin-top:12px}
+.timeline h3{font-size:12px;margin:0 0 8px;letter-spacing:.04em}
+.tl{display:flex;gap:10px}
+.tl-dot{width:22px;display:flex;flex-direction:column;align-items:center}
+.tl-dot i{width:9px;height:9px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:3px}
+.tl-dot::after{content:"";width:1px;flex:1;background:var(--line);margin-top:4px}
+.tl:last-child .tl-dot::after{display:none}
+.tl div:last-child{padding-bottom:12px} .tl b{font-size:12.5px} .tl p{margin:1px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.foot{margin-top:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:11.5px;padding:0 2px}
+.foot a{font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- TOP -->
+  <header class="top">
+    <div class="top-left">
+      <h1>AGENT <span>指挥中心</span></h1>
+      <p>状态 · 工单 · 聊天一屏看全 &nbsp;·&nbsp; 工单池 <b class="mono">/opt/shared/agent-bus/</b> &nbsp;·&nbsp; 协议 <b>v1.1 · T / X 前缀防撞</b></p>
+    </div>
+    <div class="clockbox">
+      <div class="pill"><span class="dot"></span><div><small>系统状态</small><br><strong>调度体系运行中</strong></div></div>
+      <div class="pill"><div><small>北京时间</small><br><span id="clock">--:--:--</span></div></div>
+      <div class="pill"><div><small>今日</small><br><strong id="dateStr">2026-11-10 周二</strong></div></div>
+    </div>
+  </header>
+
+  <!-- KPI -->
+  <section class="kpis" aria-label="概览">
+    <div class="kpi"><div><label>Agent 总数</label><div class="num">5</div><div class="sub">主调度 + muse-1 ~ muse-4</div></div><div class="icon i-teal">⬢</div></div>
+    <div class="kpi"><div><label>子 Agent 池</label><div class="num">3 <span style="font-size:13px;color:var(--muted);font-weight:700">/ 30 分钟轮询</span></div><div class="sub">muse-2 · muse-3 · muse-4 领单执行</div></div><div class="icon i-green">✓</div></div>
+    <div class="kpi"><div><label>调度者</label><div class="num">2</div><div class="sub">主 Agent + muse-1，各验自己派的单</div></div><div class="icon i-blue">◎</div></div>
+    <div class="kpi"><div><label>聊天中继</label><div class="num" style="font-size:19px;padding-top:4px">工作日 09:30–21:00</div><div class="sub">12:00–13:00 午休暂停 · 约 1 分钟一轮</div></div><div class="icon i-amber">◷</div></div>
+  </section>
+
+  <!-- MAIN 3 COLUMNS -->
+  <div class="main">
+    <!-- 1 STATUS -->
+    <section class="panel" aria-label="Agent 状态">
+      <div class="panel-head"><div><h2>● Agent 状态</h2><p>点任意 Agent 看职责与轮询细节</p></div><span class="badge badge-green" id="onlineBadge">加载中…</span></div>
+      <div class="filters" role="group" aria-label="筛选">
+        <button class="active" data-f="all">全部 5</button>
+        <button data-f="dispatch">调度者</button>
+        <button data-f="worker">子 Agent</button>
+      </div>
+      <div class="panel-body">
+        <div id="agentList"></div>
+        <div class="detail" id="agentDetail"></div>
+      </div>
+    </section>
+
+    <!-- 2 TICKETS -->
+    <section class="panel" aria-label="工单">
+      <div class="panel-head"><div><h2>▦ 工单中心</h2><p>主 Agent 下单 → 子 Agent 领单执行 → 写 result → 调度者交叉对账后才汇报</p></div><span class="badge badge-teal">工单池制</span></div>
+      <div class="panel-body">
+        <div class="flow">
+          <div class="flow-step"><b>① 下工单</b><span>调度者拆单</span></div><div class="arrow">→</div>
+          <div class="flow-step"><b>② 领单</b><span>每 30 分钟轮询</span></div><div class="arrow">→</div>
+          <div class="flow-step"><b>③ 执行</b><span>写 result 回池</span></div><div class="arrow">→</div>
+          <div class="flow-step"><b>④ 验收</b><span>对账后汇报</span></div>
+        </div>
+
+        <div class="pool"><div><div style="font-size:11px;opacity:.7;letter-spacing:.06em;font-weight:700">POOL PATH · 玩客云</div><code>/opt/shared/agent-bus/</code></div><span>各子 Agent 独立 Gitee 令牌<br>读写均已实测</span></div>
+
+        <div class="board">
+          <div class="lane"><div class="lane-head"><b>📥 待领取</b><span class="count c-gray">池</span></div><ul><li>新工单入池待轮询</li><li>按 <b>T / X 前缀</b>区分调度者</li><li>无工单不动仓库</li></ul></div>
+          <div class="lane"><div class="lane-head"><b>⚙️ 执行中</b><span class="count c-blue">30m</span></div><ul><li>并行调研 / 批量体力活</li><li>流水线独立段</li><li>双人复核类任务</li></ul></div>
+          <div class="lane"><div class="lane-head"><b>🔍 待验收</b><span class="count c-amber">验</span></div><ul><li>result 已回写</li><li>调度者<b>交叉对账</b></li><li>注明谁做的、验了什么</li></ul></div>
+          <div class="lane"><div class="lane-head"><b>✅ 已完成</b><span class="count c-green">报</span></div><ul><li>验收通过才向你汇报</li><li>muse-1 的单由它自汇总</li><li>双汇报线互不越界</li></ul></div>
+        </div>
+
+        <div class="redline"><b>⛔ 红线 · 子 Agent 一律不做</b><p>不发布、不代发消息、不花钱、无工单不动仓库、凭据不入任何文件。公众号草稿推送与拍板归主 Agent。</p></div>
+
+        <div class="two-col">
+          <div class="mini"><b>适合派单</b><ul><li>并行调研</li><li>批量体力活</li><li>生产流水线独立段</li><li>双人复核</li></ul></div>
+          <div class="mini"><b>不派单 · 调度者亲做</b><ul><li>靠对你的了解做判断 / 定选</li><li>发布、发消息、花钱</li><li>赶时间的急活（轮询有延迟）</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 CHAT -->
+    <section class="panel" aria-label="聊天">
+      <div class="panel-head"><div><h2>💬 聊天通道</h2><p>工作台 Web 聊天 · 左侧栏 5 个 muse 一屏全显，撑满聊天区、无整页滚动</p></div><span class="badge badge-amber">中继制</span></div>
+      <div class="panel-body">
+        <div class="chat-list">
+          <div class="chat-item"><div class="ic">🌐</div><div><b>工作台 Web 聊天 <span class="tag tag-on">主入口</span></b><p>玩客云 <span class="mono">/opt/xinwen-workbench</span> · 路径 <span class="mono">/chat</span> · 用户消息靠右 · 支持发图片（经图床转链接，单张 ≤10MB，链接公开、勿传隐私图）</p></div></div>
+          <div class="chat-item"><div class="ic">🔁</div><div><b>中继 cron · chat-relay-muse</b><p>工作日 09:30–21:00 运行，约 1 分钟一轮；12:00–13:00 午休暂停。非工作时段消息等下一时段处理。</p></div></div>
+          <div class="chat-item"><div class="ic">👥</div><div><b>会话成员</b><p>主 Agent、muse-1、muse-2、muse-3、muse-4 —— 五个入口都在同一聊天页左侧栏。</p></div></div>
+        </div>
+
+        <div class="schedule">
+          <table>
+            <thead><tr><th>对象</th><th>聊天轮询</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>中继时段</td><td>工作日 09:30–21:00<br><span style="color:var(--muted)">12:00–13:00 午休暂停</span></td><td><span class="tag tag-on" id="relayTag">—</span></td></tr>
+              <tr id="chatRowM1"><td>muse-1</td><td>1 分钟一轮</td><td><span class="tag tag-on">运行</span></td></tr>
+              <tr><td>muse-2 / muse-3</td><td>1 分钟一轮<br><span style="color:var(--muted)">工单仍 30 分钟</span></td><td><span class="tag tag-on">已改</span></td></tr>
+              <tr id="chatRowM4"><td>muse-4</td><td>1 分钟一轮<br><span style="color:var(--muted)">工单仍 30 分钟</span></td><td><span class="tag tag-on">已改</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="timeline">
+          <h3>指挥链路 · 一眼看懂</h3>
+          <div class="tl"><div class="tl-dot"><i></i></div><div><b>你 → 工作台聊天 / 直接对话</b><p>下指令、拍板、验收结果都在这里。</p></div></div>
+          <div class="tl"><div class="tl-dot"><i></i></div><div><b>调度者拆单 → 工单池</b><p>主 Agent 与 muse-1 都能拆单派活，工单号前缀防撞。</p></div></div>
+          <div class="tl"><div class="tl-dot"><i></i></div><div><b>子 Agent 执行 → result 回池 → 对账汇报</b><p>没验过不汇报；汇报注明分工与核验内容。</p></div></div>
+        </div>
+
+        <div style="background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.6;color:var(--muted)">
+          <b style="color:var(--text)">X 一手信息通道：</b> muse-2 上 X 账号登录态已核验通过（重启后保持性未实测），muse-3 核验曾进行中；核验通过后 X 类活可改走工单派发。
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="foot">
+    <span>数据口径：Agent 名单、IP、轮询与红线均按现行调度体系（2026-10-20 授权、协议 v1.1）整理 · Agent 状态每 30 秒自动刷新</span>
+    <span>盒子 CasaOS（Tailscale）：<span class="mono">100.x.x.x</span> · 先开 Tailscale</span>
+  </div>
+</div>
+
+<script>
+var agents=[
+  {id:'main',name:'主 Agent',role:'主调度者',type:'dispatch',cls:'av-main',init:'主',ip:'本机 · 指挥',poll:'即时',job:'下工单、收单验货、交叉对账、最终汇报；公众号草稿推送与拍板',detail:'<b>主 Agent：</b>整个体系的总调度。负责把活拆成工单放进池子，子 Agent 交回 result 后由它对账验收，验过才向你汇报。急活不派单、自己干。'},
+  {id:'m1',name:'muse-1',role:'平级调度者',type:'dispatch',cls:'av-1',init:'M1',ip:'调度节点',poll:'聊天 1m',job:'可独立拆单派活，只验收自己派的单；在自己对话里向你汇总；兼第二个公众号运营',detail:'<b>muse-1：</b>平级调度者，协议 v1.1。双汇报线：它派的单由它汇总，主 Agent 派的单由主 Agent 汇总，互不代验。聊天轮询已改 1 分钟一轮。'},
+  {id:'m2',name:'muse-2',role:'子 Agent',type:'worker',cls:'av-2',init:'M2',ip:'100.x.x.x',poll:'工单 30m · 聊天 1m',job:'领单执行；X 账号登录态已核验通过，可承接 X 一手信息类工单',detail:'<b>muse-2：</b>Tailscale 100.x.x.x。独立 Gitee 令牌读写已实测。聊天轮询已改 1 分钟一轮，工单轮询保持 30 分钟。'},
+  {id:'m3',name:'muse-3',role:'子 Agent',type:'worker',cls:'av-3',init:'M3',ip:'100.x.x.x',poll:'工单 30m · 聊天 1m',job:'领单执行；聊天轮询已改 1 分钟一轮',detail:'<b>muse-3：</b>Tailscale 100.x.x.x。独立 Gitee 令牌读写已实测。与 muse-2 同为第一批改成 1 分钟聊天轮询的子 Agent。'},
+  {id:'m4',name:'muse-4',role:'子 Agent',type:'worker',cls:'av-4',init:'M4',ip:'100.x.x.x',poll:'工单 30m · 聊天 1m',job:'后加入子 Agent 池；聊天轮询已改 1 分钟一轮，工单轮询保持 30 分钟',detail:'<b>muse-4：</b>Tailscale 100.x.x.x，最新加入。聊天轮询已改 1 分钟一轮（新任务 muse-4-chat-poll-1min，首轮已跑通），工单轮询保持 30 分钟。'}
+];
+var list=document.getElementById('agentList'), detail=document.getElementById('agentDetail'), cur='main', filter='all';
+function render(){
+  list.innerHTML='';
+  agents.filter(function(a){return filter==='all'||a.type===filter}).forEach(function(a){
+    var b=document.createElement('button'); b.className='agent'+(a.id===cur?' active':''); b.setAttribute('aria-label',a.name);
+    b.innerHTML='<div class="avatar '+a.cls+(a.warn?' warn':'')+'">'+a.init+'</div><div class="agent-main"><strong>'+a.name+' <em>'+a.role+'</em></strong><p>'+a.job+'</p><div class="agent-meta"><span>IP <b class="mono">'+a.ip+'</b></span><span>轮询 <b>'+a.poll+'</b></span></div></div>';
+    b.onclick=function(){cur=a.id; render();};
+    list.appendChild(b);
+  });
+  var a=agents.find(function(x){return x.id===cur})||agents[0];
+  detail.innerHTML=a.detail;
+}
+document.querySelectorAll('.filters button').forEach(function(btn){
+  btn.onclick=function(){ document.querySelectorAll('.filters button').forEach(function(x){x.classList.remove('active')}); btn.classList.add('active'); filter=btn.dataset.f; render(); };
+});
+render();
+function tick(){
+  var now=new Date();
+  var fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('clock').textContent=fmt.format(now);
+  var d=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).format(now);
+  document.getElementById('dateStr').textContent=d;
+  // Relay window: weekdays 09:30-21:00, paused 12:00-13:00 Beijing time
+  try{
+    var parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(now);
+    var wd='',hh=0,mm=0; parts.forEach(function(p){if(p.type==='weekday')wd=p.value; if(p.type==='hour')hh=parseInt(p.value,10)%24; if(p.type==='minute')mm=parseInt(p.value,10);});
+    var mins=hh*60+mm; var isWeekday=['Mon','Tue','Wed','Thu','Fri'].indexOf(wd)>-1;
+    var active=isWeekday && ((mins>=570&&mins<720)||(mins>=780&&mins<1260));
+    var tag=document.getElementById('relayTag');
+    if(tag){ tag.textContent=active?'运行中':'时段外 · 待下一时段'; tag.className='tag '+(active?'tag-on':'tag-wait'); }
+  }catch(e){}
+}
+/* ---- 实时状态：调工作台同源接口 /api/chat/agents，每 30 秒刷新 ---- */
+var API_TO_PAGE={muse:'main','muse-1':'m1','muse-2':'m2','muse-3':'m3','muse-4':'m4'};
+/* 聊天通道表也跟随接口刷新，免得静态文案又变旧 */
+function setChatRow(rowId,pollHtml,badgeText,badgeOn){
+  var row=document.getElementById(rowId); if(!row)return;
+  var tds=row.getElementsByTagName('td'); if(tds.length<3)return;
+  tds[1].innerHTML=pollHtml;
+  var tag=tds[2].querySelector('.tag');
+  if(tag){ tag.textContent=badgeText; tag.className='tag '+(badgeOn?'tag-on':'tag-wait'); }
+}
+function loadLive(){
+  fetch('/api/chat/agents',{credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||!d.ok||!Array.isArray(d.agents))return;
+      var online=0;
+      d.agents.forEach(function(a){
+        var pid=API_TO_PAGE[a.id]; if(!pid)return;
+        var ag=null; agents.forEach(function(x){if(x.id===pid)ag=x;});
+        if(!ag)return;
+        if(a.statusText)ag.poll=a.statusText;
+        ag.warn=(a.status==='offline');
+        if(a.status!=='offline')online++;
+        if(pid==='m1'&&a.statusText){
+          if(a.statusText.indexOf('1 分钟')>-1)setChatRow('chatRowM1','1 分钟一轮','运行',true);
+          else if(a.statusText.indexOf('10 分钟')>-1)setChatRow('chatRowM1','约 10 分钟一轮','运行',true);
+        }
+        if(pid==='m4'&&a.statusText){
+          if(a.statusText.indexOf('1 分钟')>-1)setChatRow('chatRowM4','1 分钟一轮<br><span style="color:var(--muted)">工单仍 30 分钟</span>','已改',true);
+          else if(a.statusText.indexOf('10 分钟')>-1)setChatRow('chatRowM4','约 10 分钟一轮','待确认',false);
+        }
+      });
+      var badge=document.getElementById('onlineBadge');
+      if(badge){
+        badge.textContent=online+' 在线 · '+(agents.length-online)+' 离线';
+        badge.className='badge '+(online===agents.length?'badge-green':'badge-amber');
+      }
+      render();
+    })
+    .catch(function(){});
+}
+tick(); setInterval(tick,1000);
+loadLive(); setInterval(loadLive,30000);
+</script>
+</body>
+</html>

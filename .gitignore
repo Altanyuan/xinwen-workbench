@@ -1,0 +1,21 @@
+# 真实数据与密钥：绝不进仓库
+data.json
+briefs.json
+notes.json
+gold.json
+weather.json
+daily_bg.json
+auth.json
+qweather_key
+qweather_host
+*.db
+*.sqlite
+*.sqlite3
+chat/
+agent-bus/
+job-plan.json
+__pycache__/
+*.log
+*.tmp
+*.bak*
+.DS_Store

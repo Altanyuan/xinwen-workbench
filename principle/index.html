@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<title>工作台原理</title>
+<style>
+  :root{
+    --bg:#f4f7f5; --surface:#ffffff; --surface2:#eef3f0; --ink:#16211c; --muted:#5a6b62; --line:#dce5df;
+    --accent:#0f766e; --accent-ink:#ffffff; --accent-soft:#d9efe9;
+    --amber:#b45309; --amber-soft:#fef3c7; --blue:#1d4ed8; --blue-soft:#dbeafe;
+    --rose:#be3455; --rose-soft:#ffe4e6; --violet:#5b4bc4; --violet-soft:#e6e2fb;
+    --radius:14px; --shadow:0 1px 3px rgba(16,40,32,.07),0 8px 24px rgba(16,40,32,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1512; --surface:#17211c; --surface2:#1d2a23; --ink:#e8f0eb; --muted:#9db3a7; --line:#2a3a32;
+      --accent:#2dd4bf; --accent-ink:#06231f; --accent-soft:#123a34;
+      --amber:#fbbf24; --amber-soft:#3a2d10; --blue:#93c5fd; --blue-soft:#1a2f52;
+      --rose:#fda4af; --rose-soft:#3d1a24; --violet:#c4b5fd; --violet-soft:#2a2350;
+      --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  button{ min-height:2.25rem }
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface2);border-radius:6px;padding:0 5px;word-break:break-all}
+
+  /* ---------- natural flow frame (no fixed height, no internal scroll) ---------- */
+  html,body{height:auto}
+  body{overflow-x:hidden}
+  .wrap{max-width:1240px;margin:0 auto;padding:16px 16px 20px;display:flex;flex-direction:column;gap:12px;height:auto;min-height:0;overflow:visible}
+  .wrap>*{flex:none;min-height:0}
+  .main,.bottom,.top{flex:none;height:auto}
+
+  /* ---------- header ---------- */
+  .top{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+  .top .title-block{flex:1 1 340px;display:flex;flex-direction:column;justify-content:center}
+  .top h1{font-size:clamp(21px,3vw,27px);line-height:1.2;margin:0 0 3px;letter-spacing:-.01em;font-weight:800}
+  .top h1 em{font-style:normal;color:var(--accent)}
+  .lede{font-size:13.5px;color:var(--muted);margin:0;max-width:46em}
+  .lede strong{color:var(--ink)}
+  .analogy{flex:1 1 300px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:9px 14px;font-size:13.5px;display:flex;gap:10px;align-items:center}
+  .analogy .ic{font-size:22px;line-height:1;flex:none}
+  .analogy p{margin:0}
+  .analogy b{color:var(--accent)}
+
+  /* ---------- main split ---------- */
+  .main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:12px;align-items:start}
+  @media (max-width:920px){ .main{grid-template-columns:1fr} }
+
+  /* ---------- diagram ---------- */
+  .diagram{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:14px 12px 12px;display:flex;flex-direction:column;justify-content:flex-start;gap:8px;height:auto;overflow:visible}
+  .diagram h2,.side h2{font-size:14px;margin:0 0 8px;font-weight:800}
+  .diagram h2 span,.side h2 span{color:var(--muted);font-weight:600;font-size:12.5px;margin-left:6px}
+  .d-row{display:flex;align-items:stretch;justify-content:center;gap:8px;flex-wrap:wrap}
+  .node{border:2px solid var(--line);background:var(--surface2);border-radius:12px;padding:7px 10px;text-align:center;cursor:pointer;min-width:104px;flex:1 1 104px;max-width:210px;transition:border-color .15s,background .15s;font:inherit;color:inherit}
+  .node:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .node .t{font-weight:800;font-size:14.5px;display:block;line-height:1.3}
+  .node .s{font-size:11.5px;color:var(--muted);display:block;margin-top:1px;line-height:1.4}
+  .node .emoji{font-size:18px;display:block;line-height:1.25}
+  .node.active{border-color:var(--accent);background:var(--accent-soft)}
+  .node.c-you{border-color:var(--amber);background:var(--amber-soft);max-width:340px}
+  .node.c-you.active{border-color:var(--amber)}
+  .node.c-box{border-color:var(--accent)}
+  .arrows{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:5px 2px;color:var(--muted);font-size:12px;text-align:center}
+  .arrows .path{background:var(--surface2);border:1px dashed var(--line);border-radius:999px;padding:2px 10px}
+  .arrows .path b{color:var(--ink)}
+  .box-shell{border:2px solid var(--accent);border-radius:16px;padding:10px}
+  .box-shell>.cap{font-size:12.5px;font-weight:700;color:var(--accent);letter-spacing:.03em;margin:0 2px 8px}
+  .inside{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+  .inside div{background:var(--surface2);border-radius:9px;padding:6px 8px;font-size:12.5px;text-align:center}
+  .inside div b{display:block;font-size:13px}
+  .inside div span{color:var(--muted);font-size:11px}
+  @media (max-width:520px){ .inside{grid-template-columns:repeat(2,1fr)} }
+
+  /* ---------- side column ---------- */
+  .side{display:flex;flex-direction:column;gap:12px;height:auto;overflow:visible}
+  .side>*{flex:none}
+  .detail{background:var(--accent-soft);border-radius:var(--radius);padding:12px 14px;font-size:13.5px;height:auto;overflow:visible}
+  .detail b{font-size:15px;display:block;margin-bottom:2px}
+  .detail p{margin:0}
+  .flows{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;height:auto;overflow:visible}
+  .flow-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .flow-tabs button{font:inherit;font-weight:700;font-size:13px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;min-height:2rem}
+  .flow-tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .flow[hidden]{display:none}
+  .steps{display:flex;flex-direction:column;gap:8px}
+  .step{display:flex;gap:9px;align-items:flex-start}
+  .step .n{flex:none;width:21px;height:21px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12.5px;margin-top:1px}
+  .step p{margin:0;font-size:13px;color:var(--muted)}
+  .step p b{color:var(--ink);font-size:13.5px}
+
+  /* ---------- bottom strip ---------- */
+  .bottom{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:12px;align-items:start}
+  @media (max-width:920px){ .bottom{grid-template-columns:1fr} }
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 14px}
+  .panel h2{font-size:14px;margin:0 0 7px;font-weight:800}
+  .panel h2 span{color:var(--muted);font-weight:600;font-size:12.5px;margin-left:6px}
+  .doors{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:520px){ .doors{grid-template-columns:1fr} }
+  .door h3{margin:0 0 3px;font-size:14.5px}
+  .door p{margin:0;font-size:12.5px;color:var(--muted)}
+  .door p b{color:var(--ink)}
+  .vs-note{margin:7px 0 0;font-size:12.5px;color:var(--muted)}
+  .vs-note b{color:var(--ink)}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
+  @media (max-width:520px){ .rules{grid-template-columns:1fr} }
+  .rule{font-size:12.5px;color:var(--muted)}
+  .rule b{display:block;font-size:13px;color:var(--ink)}
+
+  .foot{margin:0;color:var(--muted);font-size:11.5px}
+  /* No module may cover another and no panel scrolls internally:
+     everything stays in normal flow and grows with its content. */
+  .diagram,.detail,.flows,.panel,.analogy,.box-shell{position:relative;z-index:auto;max-height:none}
+  @media (prefers-reduced-motion: reduce){ .node{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HEADER ================= -->
+  <header class="top">
+    <div class="title-block">
+      <h1>工作台原理：<em>一个盒子、一群助手、两条路</em></h1>
+      <p class="lede">工作台不是装在某家大公司云上，而是<strong>跑在你家里一个巴掌大的小盒子上</strong>，由 5 个 AI 助手（muse 一家）轮流值班干活。点下面任意一块，看它是干什么的。</p>
+    </div>
+    <div class="analogy">
+      <div class="ic" aria-hidden="true">🏢</div>
+      <p><b>打个比方：整套系统是一家小公司。</b>盒子是<b>办公室</b>，CasaOS 是<b>前台大屏和门禁</b>；Tailscale 是只发给自己人的<b>内部专线</b>，零讯是对外营业的<b>正门</b>；muse 是<b>店长</b>，muse-1 是<b>副店长</b>，muse-2 / 3 / 4 是<b>三位员工</b>。你，就是老板。</p>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <section class="diagram" aria-label="系统关系图">
+      <h2>一张图看懂全貌<span>你在最上面，盒子在中间当枢纽，5 个 muse 围着盒子干活</span></h2>
+      <div class="d-row">
+        <button type="button" class="node c-you" data-key="you"><span class="emoji" aria-hidden="true">🧑</span><span class="t">你（zhao）</span><span class="s">手机 / 电脑，随时随地下指令、看结果</span></button>
+      </div>
+      <div class="arrows" aria-hidden="true">
+        <span class="path">🚪 走正门：<b>零讯</b> → 打开工作台</span>
+        <span class="path">🔐 走专线：<b>Tailscale</b> → 进盒子后台</span>
+        <span class="path">💬 说句话：交给 <b>muse 店长</b> 去安排</span>
+      </div>
+      <div class="box-shell">
+        <p class="cap">📦 盒子 · 玩客云（放在家里，24 小时开着）— CasaOS 管着它</p>
+        <div class="d-row">
+          <button type="button" class="node c-box" data-key="box"><span class="emoji" aria-hidden="true">🗄️</span><span class="t">盒子 + CasaOS</span><span class="s">全家的“办公室”，数据和程序都存这儿</span></button>
+          <button type="button" class="node" data-key="tailscale"><span class="emoji" aria-hidden="true">🛡️</span><span class="t">Tailscale</span><span class="s">内部专线网，外人看不见、进不来</span></button>
+          <button type="button" class="node" data-key="lingxun"><span class="emoji" aria-hidden="true">🚪</span><span class="t">零讯</span><span class="s">对外的正门，公网也能打开工作台</span></button>
+        </div>
+        <div class="inside" aria-label="盒子里装的东西">
+          <div><b>个人工作台</b><span>新闻 · 粉丝 · 聊天 · 指挥中心</span></div>
+          <div><b>工单池</b><span>任务公告板 agent-bus</span></div>
+          <div><b>产品官网</b><span>下载页也借住在盒子上</span></div>
+          <div><b>数据采集</b><span>公众号数据每天自动抓</span></div>
+        </div>
+      </div>
+      <div class="arrows" aria-hidden="true">
+        <span class="path">📋 工单池派活 · 每 <b>30 分钟</b>领一次</span>
+        <span class="path">💬 聊天中继 · 约 <b>1 分钟</b>取一次</span>
+      </div>
+      <div class="d-row">
+        <button type="button" class="node" data-key="muse"><span class="emoji" aria-hidden="true">🧭</span><span class="t">muse</span><span class="s">主 Agent · 总调度（店长）</span></button>
+        <button type="button" class="node" data-key="muse1"><span class="emoji" aria-hidden="true">🧑‍💼</span><span class="t">muse-1</span><span class="s">平级调度者（副店长）</span></button>
+        <button type="button" class="node" data-key="muse2"><span class="emoji" aria-hidden="true">🔧</span><span class="t">muse-2</span><span class="s">子 Agent · 干活的</span></button>
+        <button type="button" class="node" data-key="muse3"><span class="emoji" aria-hidden="true">🔧</span><span class="t">muse-3</span><span class="s">子 Agent · 干活的</span></button>
+        <button type="button" class="node" data-key="muse4"><span class="emoji" aria-hidden="true">🔧</span><span class="t">muse-4</span><span class="s">子 Agent（后加入）</span></button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="detail" id="nodeDetail" role="status" aria-live="polite"></div>
+      <section class="flows" aria-label="流转场景">
+        <h2>活是怎么流转的<span>点标签切换场景</span></h2>
+        <div class="flow-tabs" role="tablist" aria-label="流转场景">
+          <button type="button" role="tab" aria-selected="true" data-flow="f1">① 打开工作台</button>
+          <button type="button" role="tab" aria-selected="false" data-flow="f2">② 店长派活</button>
+          <button type="button" role="tab" aria-selected="false" data-flow="f3">③ 工作台聊天</button>
+        </div>
+        <div class="flow" id="f1" role="tabpanel">
+          <div class="steps">
+            <div class="step"><div class="n">1</div><p><b>你点开链接</b>——在公司、在路上，手机打开零讯正门地址，<b>不用开 Tailscale</b>。</p></div>
+            <div class="step"><div class="n">2</div><p><b>零讯把请求送进家里</b>——隧道一直挂在盒子上待命，请求顺着它直达盒子，像前台把访客领进办公室。</p></div>
+            <div class="step"><div class="n">3</div><p><b>盒子上的工作台应答</b>——工作台本体就跑在盒子上，页面生成后原路返回到你手机上。</p></div>
+            <div class="step"><div class="n">4</div><p><b>盒子关机 = 工作台打不开</b>——没有云服务器在中间顶着，盒子是唯一主机，所以要 24 小时开着、还要有备份盘。</p></div>
+          </div>
+        </div>
+        <div class="flow" id="f2" role="tabpanel" hidden>
+          <div class="steps">
+            <div class="step"><div class="n">1</div><p><b>你把事交给店长</b>——比如“调研一批选题”，主 Agent（或 muse-1）判断适合并行外包，就拆成一张张工单。</p></div>
+            <div class="step"><div class="n">2</div><p><b>工单进池</b>——写进盒子上的工单池 <code>/opt/shared/agent-bus/</code>，带调度者前缀标记（协议 v1.1，T / X 防撞），谁派的单一目了然。</p></div>
+            <div class="step"><div class="n">3</div><p><b>员工轮询领单</b>——muse-2 / 3 / 4 每 <b>30 分钟</b>来看一次，领走自己的单开干；没单就安静待命，不乱动仓库。</p></div>
+            <div class="step"><div class="n">4</div><p><b>结果写回 + 验收</b>——result 写回池子，派单的调度者亲自交叉对账，验过才向你汇报；员工说“干完了”不算数。</p></div>
+          </div>
+        </div>
+        <div class="flow" id="f3" role="tabpanel" hidden>
+          <div class="steps">
+            <div class="step"><div class="n">1</div><p><b>你在聊天页发消息</b>——左侧栏 5 个 muse 一屏全显，点谁和谁聊，消息先落到盒子上的聊天中继里排队。</p></div>
+            <div class="step"><div class="n">2</div><p><b>对方约 1 分钟来取一次</b>——聊天是“取件制”不是“推送制”，每个 muse 约 1 分钟轮询一次；回复慢一拍是正常现象，不是卡死。</p></div>
+            <div class="step"><div class="n">3</div><p><b>回复实时推回页面</b>——回复写回盒子后，聊天页用长连接（SSE）立刻推到你屏幕上，不用手动刷新。</p></div>
+            <div class="step"><div class="n">4</div><p><b>聊天轮询 ≠ 工单轮询</b>——聊天 1 分钟图对话顺畅，工单 30 分钟图省资源；急活别走工单，直接找店长自己干更快。</p></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ================= BOTTOM ================= -->
+  <div class="bottom">
+    <section class="panel" aria-label="两条路的区别">
+      <h2>两条路的区别<span>零讯和 Tailscale 都能“连上盒子”，但一公一私</span></h2>
+      <div class="doors">
+        <div class="door">
+          <h3>🚪 零讯 = 正门（图方便）</h3>
+          <p>随手打开工作台时用，<b>不用开专线</b>，任何网络点开就能看；只能到工作台（和挂在下面的粉丝系统、产品官网），<b>到不了 CasaOS 后台</b>。</p>
+        </div>
+        <div class="door">
+          <h3>🛡️ Tailscale = 员工通道（图安全）</h3>
+          <p>你管盒子、muse-2 / 3 / 4 互相协作时走它，<b>先开专线才进得去</b>；CasaOS 后台、盒子内部服务全都能到，因为这已经是“进了公司内部”。主 Agent 这台机器也一样，只能走这条专线连盒子。盒子连不回主 Agent，是因为主 Agent 这边不接受入站连接。</p>
+        </div>
+      </div>
+      <p class="vs-note">记不住就记一句：<b>看工作台走零讯，管盒子走 Tailscale。</b></p>
+    </section>
+    <section class="panel" aria-label="四条家规">
+      <h2>四条家规<span>这套系统为什么靠谱</span></h2>
+      <div class="rules">
+        <div class="rule"><b>🔒 对外的口越少越好</b>CasaOS 后台永不挂公网，只有工作台开正门，且正门进不了后台。</div>
+        <div class="rule"><b>📋 无工单，不动仓库</b>子 Agent 没工单不许碰代码仓库，干什么都有单可查。</div>
+        <div class="rule"><b>✅ 验收过才汇报</b>员工交活、调度者对账，验完才告诉你结果，杜绝“说干完其实没干完”。</div>
+        <div class="rule"><b>🚫 三条红线</b>子 Agent 不发布、不代发消息、不花钱；对外动作只能调度者经手、且要你拍板。</div>
+      </div>
+    </section>
+  </div>
+
+  <p class="foot">数据口径：成员名单、Tailscale 地址、轮询节奏与调度协议（v1.1）按现行工作台体系整理。零讯为稳定主通道，另有 Cloudflare 临时隧道作备用，重启后地址会变。</p>
+</div>
+
+<script>
+(function(){
+  var details = {
+    you:      {t:"你（zhao）· 老板", d:"所有事的起点和终点：你下指令、拍板、看汇报。你不需要懂技术细节，只需要知道两扇门——看工作台走零讯，管盒子先开 Tailscale。"},
+    box:      {t:"盒子 + CasaOS · 办公室和它的桌面", d:"盒子（玩客云，别名 OneCloud）是放在家里、24 小时不关机的小电脑，走家庭宽带，所以还是个“住宅网络出口”。工作台程序、工单池、公众号采集、产品官网全跑在它上面，它一关机全家停摆；重要数据不只存它一块盘，另有备份盘兜底。CasaOS 是管理它的桌面系统，想看盒子里装了什么、服务还活着没，打开它就行。进后台必须先连 Tailscale，地址 100.x.x.x；公网隧道链接没有映射 CasaOS，别拿那个试。"},
+    tailscale:{t:"Tailscale · 内部专线", d:"给自家设备拉的一张只有自己人能进的局域网，不管人离多远都像在同一个屋里。盒子和 muse-2 / 3 / 4 都在网里，用 100.x 开头的内部地址互相直连：子 Agent 传工单、你进 CasaOS 后台，走的都是这条线，外人连门都看不见。盒子的安全加固也建立在它之上——只认专线内的密钥登录，密码登录已关。成员门牌：muse-2 是 100.x.x.x，muse-3 是 100.x.x.x，muse-4 是 100.x.x.x。"},
+    lingxun:  {t:"零讯 · 对外正门", d:"家里宽带没有固定公网地址，零讯相当于给盒子租了个“对外接待窗口”：你在外面不用开任何专线，点链接就能打开工作台，请求被转进盒子。它是主地址、最稳定；另有一条 Cloudflare 临时隧道当备胎，速度更快但重启就换地址。工作台和粉丝系统现在共用这一扇正门（粉丝系统走工作台里的 /fansapp/ 路径），腾出来的另一条隧道给了产品官网。正门地址：https://你的隧道地址/ ——只通工作台，不通 CasaOS 后台。"},
+    muse:     {t:"muse · 主 Agent（店长）", d:"你平时直接对话的这位就是店长本人：接你的话、做判断、派活、验收、最后向你汇报。它统筹公众号、抖音、视频号等日常事务，需要人手时把活拆成工单扔进工单池；子 Agent 干完的活必须经它交叉对账验收，才算数、才向你汇报。红线也归它守：发布、花钱、对外发消息这类动作子 Agent 一律不许碰，只能它来、且要你拍板。在工作台聊天页左侧栏里排第一位的就是它，聊天约 1 分钟回一轮。"},
+    muse1:    {t:"muse-1 · 平级调度者（副店长）", d:"不是下属，是另一位能独立带队的店长，拍板定为与主 Agent 平级。它也能拆单、往工单池派活；两人用工单号前缀区分地盘（协议 v1.1，T / X 前缀防撞），各自只验收自己派的单，互不越界。它同时保留一份运营职责，负责第二个公众号的备稿线。聊天轮询和主 Agent 一样，已改成约 1 分钟取一次。派活时别把它和 muse-2 / 3 / 4 混为一谈——它不是子 Agent 池成员。"},
+    muse2:    {t:"muse-2 · 子 Agent（员工）", d:"只干活、不拿主意的一位，适合并行调研、批量体力活、流水线分段和双人复核。每 30 分钟去工单池领一次单，干完把结果（result）写回池子等验收；工作台聊天约 1 分钟回一轮。它有自己独立的 Gitee 令牌，读写都实测过；没工单时不许乱动仓库。三条红线：不发布、不代发消息、不花钱。Tailscale 地址 100.x.x.x。"},
+    muse3:    {t:"muse-3 · 子 Agent（员工）", d:"职责和 muse-2 相同：每 30 分钟轮询工单池领单执行，结果写回等调度者验收；聊天约 1 分钟一轮；有独立 Gitee 令牌。三条红线一样：不发布、不代发消息、不花钱。因为工单全程留痕，哪一步卡住、卡了多久一翻记录就知道——比如某次验证单迟迟不回，就是靠工单池发现卡在连接确认上的。Tailscale 地址 100.x.x.x。"},
+    muse4:    {t:"muse-4 · 子 Agent（员工）", d:"后入职的最新一位，职责同上：30 分钟轮询领工单、干完写回结果、等派单的调度者验收，红线同样是不发布、不代发、不花钱。它的 1 分钟聊天轮询建好后，聊天也是约 1 分钟回一轮。Tailscale 地址 100.x.x.x。"}
+  };
+  var box = document.getElementById('nodeDetail');
+  var nodes = Array.prototype.slice.call(document.querySelectorAll('.node'));
+  function show(key){
+    var it = details[key]; if(!it) return;
+    box.innerHTML = '';
+    var b = document.createElement('b'); b.textContent = it.t;
+    var p = document.createElement('p'); p.textContent = it.d;
+    box.appendChild(b); box.appendChild(p);
+    nodes.forEach(function(n){ n.classList.toggle('active', n.getAttribute('data-key')===key); });
+  }
+  nodes.forEach(function(n){
+    n.addEventListener('click', function(){ show(n.getAttribute('data-key')); });
+  });
+  show('box');
+
+  // flow tabs
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.flow-tabs button'));
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      tabs.forEach(function(t){ t.setAttribute('aria-selected','false'); });
+      tab.setAttribute('aria-selected','true');
+      ['f1','f2','f3'].forEach(function(id){
+        document.getElementById(id).hidden = (id !== tab.getAttribute('data-flow'));
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
