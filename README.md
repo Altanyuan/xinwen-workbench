@@ -59,6 +59,10 @@ WB_PASSWORD=你的主口令 WB_WORK_PASSWORD=你的工作口令 python3 app.py 1
 
 `data.sample.json`、`notes.sample.json`、`job-plan.sample.json` 是格式示例，复制改名去掉 `.sample` 就能用。
 
+## 多 Muse 拆单（dispatch/）
+
+一个主 Muse 拆单、多个子 Muse 领单、人只跟主 Muse 说话的最小可跑核心：工单模板（`task-template.md`）＋子 Muse 轮询领单（`poll-claim.sh`，每 30 分钟一趟）＋主 Muse 侧网页聊天中继（`relay_fetch.py` / `relay_send.py`，一次 SSH 批量取回/发送）。用法与依赖（中继脚本要调盒子聊天系统的 `chat-helper.py`，不随仓发）见 `dispatch/README.md`。工作台的「指挥中心」与「工作台原理」页讲的是同一套东西。
+
 ## 部署建议
 
 - 找一台常开的机器（旧电脑、迷你主机、NAS 都行），装 Python 3.10+，不用装任何依赖。
