@@ -2,9 +2,14 @@
 
 一个主 Muse 拆单、多个子 Muse 领单、人只跟主 Muse 说话的最小可跑核心。配套文章是公众号「地铁里的AI探员」的续篇《5 个 Muse 养起来了，活还是派不出去…》，工作台的「指挥中心」与「工作台原理」页讲的是同一套东西。
 
-## 四个文件
+加新人的四段提示词和入职检查清单在 `onboarding-prompts.md` 与 `onboarding-checklist.md`，配套文章是《第 6 个 Muse 入职记》。
+
+## 文件一览
 
 | 文件 | 干什么 |
+|---|---|
+| `onboarding-prompts.md` | 加新人四段提示词全文：加入子 Agent 池、测 SSH 搭工单轮询、搭聊天轮询报额度、头像；附额度上报格式 |
+| `onboarding-checklist.md` | 新人入职检查清单：四步走完后逐项打勾，缺一项都不算完 |
 |---|---|
 | `task-template.md` | 工单模板：一单一个目录，里面放 `task.md`，写清指派给谁、任务、验收标准、状态（queued → 执行中 → done），做完把结果写进 `result.md` |
 | `poll-claim.sh` | 子 Muse 的轮询领单脚本（骨架）：每 30 分钟跑一趟，只领派给自己且状态为 queued 的单；领单后把状态改成「执行中」，做完写 `result.md` |
